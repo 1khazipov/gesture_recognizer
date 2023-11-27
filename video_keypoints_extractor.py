@@ -1,76 +1,62 @@
-from tqdm import tqdm
-import cv2
-import os
 import torch
-import json
+from utils import get_classes_indexes, get_frame_points
+
+import cv2
+
+import os
+from tqdm import tqdm
+
 from cvzone.HandTrackingModule import HandDetector
 from cvzone.PoseModule import PoseDetector
 
-videos_root = "data/raw/dataset/videos"
-
-result_dir = "data/internal/features"
-if not os.path.exists(result_dir):
-    os.makedirs(result_dir)
+# SELECT CLASSES TO EXTRACT!
+classes_to_extract = list({"can", "you", "blow", "my", "whistle", "baby", "whistle", "baby", "let", "me", "know"})
+classes_to_extract += ["airplane", "due", "heavy"]
 
 hands_detector = HandDetector()
 pose_detector = PoseDetector()
 
+classes_indexes = get_classes_indexes(class_file_name="data/raw/dataset/wlasl_class_list.txt", classes_to_extract=classes_to_extract)
 
-videos_js = json.load(open("data/raw/dataset/nslt_100.json"))
+CLASS_TO_IDX = {class_name : idx for (class_name, idx) in  zip(classes_to_extract, classes_indexes)}
+IDX_TO_CLASS = {idx : class_name for (class_name, idx) in  zip(classes_to_extract, classes_indexes)}
 
+dataset_path = 'data/internal/preprocessed_videos'
+classes_in_dir = [folder_name for folder_name in os.listdir(dataset_path) if folder_name in classes_to_extract]
+
+result_dir = "data/internal/features"
 processed_video_names = [os.path.splitext(name)[0] for name in os.listdir(result_dir)]
-not_relevant_videos = [os.path.splitext(name)[0] for name in os.listdir(videos_root) if videos_js.get(os.path.splitext(name)[0]) is None]
 
-video_names = [name for name in os.listdir(videos_root) if os.path.splitext(name)[0] not in not_relevant_videos]
-
-bar = tqdm(video_names)
-file_number = len(videos_js.keys())
-index = 0
-
-for name in bar:
-    full_path = videos_root + "/" + name
-    video = cv2.VideoCapture(full_path)
-    frames_points = []
-    frame_cnt = 0
-    r_name = os.path.splitext(name)[0]
-    if r_name in processed_video_names:
-        continue
-
-    start_frame, end_frame = videos_js[r_name]["action"][1], videos_js[r_name]["action"][2]
-    while video.isOpened():
-        ret, frame = video.read()
-        frame_cnt += 1
-        # If frame inside action frames then preprocess them
-        if ret and start_frame <= frame_cnt <= end_frame:
-            # Collect all points. 21 points for each hand, 33 points on pose
-            points = [0] * (21 * 3 * 2 + 33 * 3)
-            # Recognize hands and collect them into list of all points
-            hands, img1 = hands_detector.findHands(frame)
-            for i in range(len(hands)):
-                ind_shift = 0
-                if hands[i].get('type') == 'Left':
-                    ind_shift = 21 * 3
-                hand_points = hands[i].get('lmList')
-                for j in range(len(hand_points)):
-                    for k in range(3):
-                        points[ind_shift + j * 3 + k] = hand_points[j][k]
-
-            # Recognize the pose and collect points
-            img2 = pose_detector.findPose(frame)
-            lmList, bboxInfo = pose_detector.findPosition(frame, bboxWithHands=False)
-            for i in range(len(lmList)):
-                for j in range(3):
-                    points[21 * 3 * 2 + i * 3 + j - 1] = lmList[i][j]
-            frames_points.append(points)
-        elif not ret:
-            break
-
-    # Release the video object
-    video.release()
-
-    # Convert the list of frames to a PyTorch tensor
-    tensor = torch.tensor(frames_points)
-    torch.save(tensor, result_dir + "/" + r_name + ".pt")
-    index += 1
+for class_name in classes_in_dir:
     
-    bar.set_postfix(({"Files loaded": f"{index} of {len(video_names)-len(processed_video_names)}"}))
+    path_to_class = os.path.join(dataset_path, class_name)
+    file_names = os.listdir(path_to_class)
+    
+    bar = tqdm(file_names)
+    bar.set_description(class_name)
+    
+    for file in bar:
+        full_path = os.path.join(path_to_class, file)
+        video = cv2.VideoCapture(full_path)
+        frames_points = []
+        frame_cnt = 0
+        r_name = os.path.splitext(file)[0]
+        
+        if r_name in processed_video_names:
+            continue
+
+        while video.isOpened():
+            ret, frame = video.read()
+            frame_cnt += 1
+            if ret:
+                points = get_frame_points(frame, hands_detector, pose_detector)
+                frames_points.append(points)
+            elif not ret:
+                break
+
+        # Release the video object
+        video.release()
+
+        # Convert the list of frames to a PyTorch tensor
+        tensor = torch.tensor(frames_points)
+        torch.save(tensor, result_dir + "/" + r_name + ".pt")
