@@ -40,5 +40,24 @@ To pre-process merged dataset to further training enter following command for th
 python src/data/video_keypoints_extractor.py 
 ```
 
-# Training
-Currently available only in `asl_recognition.ipynb` notebook
+# Train model
+To train any model on the preprocessed dataset enter following command for the repository root (example for a simple lstm model):
+```bash
+python src/models/simple_lstm/train_model.py
+```
+
+# Inference
+To use the final trained model on your own videos enter following command for the repository root (example for a simple lstm model):
+```bash
+python src/models/simple_lstm/predict_model.py --file_path 'path/to/video.mp4'
+```
+
+# Miscellaneous
+One can try models in action (live) by running the following command:
+```bash
+python demo.py
+```
+One can add some arguments as well. Command with default arguments is (example for a simple lstm model):
+```bash
+python demo.py --threshold 0.9 --checkpoint_name 'best.pt' --model_name 'simple_lstm' 
+```
