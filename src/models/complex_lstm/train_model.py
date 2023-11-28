@@ -53,7 +53,7 @@ if __name__ == '__main__':
     model = ComplexLSTM(input_size=225, output_size=len(idx_to_class))
     criterion = nn.CrossEntropyLoss()
 
-    train_model(model, 200, criterion, train_dataloader, test_dataloader, save_ckpt_path='models/complex_lstm/best.pt', device=device)
+    train_model(model, 300, criterion, train_dataloader, test_dataloader, save_ckpt_path='models/complex_lstm/best.pt', device=device)
 
     checkpoint = torch.load('models/complex_lstm/best.pt')
     
