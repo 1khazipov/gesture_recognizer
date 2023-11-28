@@ -7,26 +7,9 @@ import torch.nn as nn
 import torch
 
 from src.utils import get_frame_points
+from src.models.simple_lstm.train_model import SimpleLSTM
 
 THRESHOLD = 0.95
-
-class SequenceModel(nn.Module):
-    def __init__(self, input_size, output_size) -> None:
-        super().__init__()
-        self.lstm = nn.Sequential(
-            nn.LSTM(input_size, 64, 1, batch_first=True, bidirectional=True),
-        )
-        self.linear = nn.Sequential(
-            nn.Linear(64 * 2, 16),
-            nn.ReLU(),
-            nn.Linear(16, output_size),
-        )
-
-    def forward(self, x):
-        x, _ = self.lstm(x)
-        x = self.linear(x[:,-1,:])
-
-        return x
     
 import os
 from src.utils import get_classes_indexes
@@ -96,8 +79,9 @@ if __name__ == '__main__':
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
             
-    model = SequenceModel(input_size=225, output_size=len(IDX_TO_CLASS))
-    model.load_state_dict(torch.load('models/simple_lstm/best.pt'))
+    model = SimpleLSTM(input_size=225, output_size=len(IDX_TO_CLASS))
+    checkpoint = torch.load('models/simple_lstm/best.pt')
+    model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
     model.to(device)
             

@@ -1,3 +1,4 @@
+from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset, DataLoader
 from torch import nn
 import torch
@@ -11,6 +12,11 @@ import cv2
 import os
 from os.path import exists
 import torch.nn.functional as F
+
+import sys
+scriptpath = "."
+sys.path.append(os.path.abspath(scriptpath))
+from src.utils import create_dataframe
 
 def read_classes(path):
     classes = dict()
@@ -33,6 +39,32 @@ def get_max_frame_count(source_folder : str, dataset : pd.DataFrame) -> int:
         max_frame_count = max(max_frame_count, length)
     return max_frame_count
 
+
+
+def get_device():
+    #Set up device
+    use_cuda = torch.cuda.is_available()
+    device = torch.device("cuda" if use_cuda else "cpu")
+    return device
+
+def get_dataset():
+    source_folder = os.path.join('data', 'internal', 'preprocessed_videos')
+
+    class_file_name = "data/raw/dataset/wlasl_class_list.txt"
+
+    dataset = create_dataframe(source_folder, class_file_name)
+
+    idx_to_class = [ c_id for i, c_id in enumerate(set(dataset.class_id))]
+    class_to_idx = { c_id: i for i, c_id in enumerate(idx_to_class)}
+
+    train, test = train_test_split(dataset, test_size=0.2, random_state=42)
+
+    max_frame_count = get_max_frame_count(source_folder, dataset)
+    
+    train_dataset = ASLDataset('data/internal/features', train, max_frame_count, class_to_idx)
+    test_dataset = ASLDataset('data/internal/features', test, max_frame_count, class_to_idx)
+
+    return train_dataset, test_dataset, idx_to_class
 
 class ASLDataset(Dataset):
     """
@@ -96,7 +128,7 @@ class ASLDataset(Dataset):
 
         return self.tensor_sequences[index].float(), self.targets[index].long()
 
-def train_model(model: nn.Module, epochs: int, criterion, optimizer, train_dataloader, validation_dataloader, ckpt_path='models/best.pt', device='cuda'):
+def train_model(model: nn.Module, epochs: int, criterion, train_dataloader, validation_dataloader, load_ckpt : bool =False, load_ckpt_path : str or None = None, save_ckpt_path : str='models/best.pt', device : torch.device='cuda'):
     """
     Function that trains model using number of epochs, loss function, optimizer.
     Can use validation or test data set for evaluation.
@@ -113,15 +145,42 @@ def train_model(model: nn.Module, epochs: int, criterion, optimizer, train_datal
     optimizer
       The optimizer from pytorch
     """
+    
+    if load_ckpt_path is None:
+        load_ckpt_path = save_ckpt_path
 
     model.train()
     model.to(device)
+    
+    # best score for checkpointing
+    best = 0.0
+    train_losses = []
+    train_scores = []
+    val_losses = []
+    val_scores = []
+    
+    first_epoch = 1
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    history = {'train_losses': [], 'val_losses': [],
-               'train_scores': [], 'val_scores': []}
+    isCkptExists = os.path.isfile(load_ckpt_path)
+    
+    if (load_ckpt and not isCkptExists):
+        print('Checkpoint file does not exist. Training model from scratch!')
+
+    if (load_ckpt and isCkptExists):
+        checkpoint = torch.load(load_ckpt_path)
+        best = checkpoint['best_score']
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        train_losses = checkpoint['train_losses']
+        train_scores = checkpoint['train_scores']
+        val_scores = checkpoint['val_scores']
+        val_losses = checkpoint['val_losses']
+        first_epoch = checkpoint['epoch'] + 1
 
     # Train the model
-    for epoch in range(epochs):
+    for epoch in range(first_epoch, epochs + first_epoch):
         model.train()
 
         predicted_train = []
@@ -167,17 +226,25 @@ def train_model(model: nn.Module, epochs: int, criterion, optimizer, train_datal
         # Printing information in the end of train loop
         val_loss, val_f1 = test_model(model, criterion, validation_dataloader)
 
-        if not history['val_scores'] or val_f1 > max(history['val_scores']):
-          torch.save(model.state_dict(), ckpt_path)
-
-        history['train_losses'].append(train_loss)
-        history['val_losses'].append(val_loss)
-        history['train_scores'].append(train_f1)
-        history['val_scores'].append(val_f1)
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        train_scores.append(train_f1)
+        val_scores.append(val_f1)
+                
+        if val_f1 > best:
+            best = val_f1
+            torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_losses': train_losses,
+            'train_scores': train_scores,
+            'val_losses': val_losses,
+            'val_scores': val_scores,
+            'best_score': best,
+            }, save_ckpt_path)
 
         print(f"Epoch {epoch+1}: \ntrain:\t\t(loss: {train_loss:.4f}, f1 score: {train_f1:.4f}) \nvalidation:\t(loss: {val_loss:.4f}, f1 score: {val_f1:.4f})\n")
-
-    return history
 
 
 def test_model(model: nn.Module, criterion, test_dataloader: DataLoader, device='cuda'):
