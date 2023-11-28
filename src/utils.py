@@ -76,3 +76,24 @@ def extract_frames(input_video_path : str, start_frame : int, end_frame : int, o
     # Release the video capture and writer objects
     video_capture.release()
     output_video.release()
+    
+import os
+from pathlib import Path
+import pandas as pd
+
+def create_dataframe(videos_root, class_file_name):
+    data = []
+    
+    classes_to_extract = os.listdir(videos_root)
+    
+    classes_data = get_classes_indexes(class_file_name=class_file_name, classes_to_extract=classes_to_extract)
+
+    CLASS_TO_IDX = {class_name : idx for (idx, class_name) in  classes_data}
+    IDX_TO_CLASS = {idx : class_name for (idx, class_name) in  classes_data}
+    
+    for class_name in os.listdir(videos_root):
+        class_path = os.path.join(videos_root, class_name)
+        for name in os.listdir(class_path):
+            name = Path(name).stem
+            data.append([name, CLASS_TO_IDX[class_name], class_name])
+    return pd.DataFrame(data, columns=['video_name', 'class_id', 'class_name'])
