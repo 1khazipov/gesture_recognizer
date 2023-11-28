@@ -3,7 +3,7 @@ Anvar Iskhakov \
 email: _an.iskhakov@innopolis.univerisity_
 
 Albert Khazipov \
-emial: _a.khazipov@innopolis.university_ 
+email: _a.khazipov@innopolis.university_ 
 
 Dmitrii Naumov \
 email: _d.naumov@innopolis.university_
