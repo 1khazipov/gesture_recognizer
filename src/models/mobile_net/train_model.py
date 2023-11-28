@@ -39,11 +39,28 @@ transform = {
 }
 
 class MyDataset(torch.utils.data.Dataset):
+    """
+    Custom dataset for gesture recognition
+
+    """
     def __init__(self, subset, transform=None):
+        """
+
+        Args:
+            subset (_type_): part of the initial dataset
+            transform (_type_, optional): transforms that will be applied. Defaults to None.
+        """
         self.subset = subset
         self.transform = transform
         
     def __getitem__(self, index):
+        """
+
+        Args:
+            index (_type_): index of the dataset item that will be returned
+
+        Returns frame and label
+        """
         x, y = self.subset[index]
         image_np = np.array(x)
         if self.transform:
@@ -51,6 +68,10 @@ class MyDataset(torch.utils.data.Dataset):
         return x, y
         
     def __len__(self):
+        """
+
+        Returns len of the dataset
+        """
         return len(self.subset)
     
      
@@ -60,7 +81,7 @@ img_dataset = torchvision.datasets.ImageFolder(
     #transform = Transform(transform)
 )
 
-print(img_dataset.classes)
+# Let's divide dataset into train and test part
 size = len(img_dataset)
 train_size = int(size * 0.8)
 val_size = size - train_size
@@ -71,6 +92,7 @@ valid_dataset = MyDataset(valid_dataset, transform=transform['test'])
 
 num_classes = len(img_dataset.classes)
 
+# Creating dataloaders
 train_loader = DataLoader(
     train_dataset,
     batch_size=batch_size,
@@ -83,15 +105,27 @@ val_loader = DataLoader(
     shuffle=True
 )
 
+# Let's initialize model and change the last layer
 model = models.mobilenet_v3_small(pretrained=True, progress=True)
 model.classifier[-1] = nn.Linear(1024, num_classes)
 model.to(device)
 
+# Let's initialize multiclass f1 score
 f1_score = F1Score(task="multiclass", num_classes=4).to(device)
 loss_fn = torch.nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
+# This code was inspired by https://pytorch.org/tutorials/beginner/introyt/trainingyt.html
 def train_one_epoch(epoch_index):
+    """_summary_
+
+    Args:
+        epoch_index (_type_): _description_
+        Epoch index used in writer
+
+    Returns:
+        _type_: average loss of the batch
+    """
     running_loss = 0.
     last_loss = 0.
 
@@ -121,7 +155,7 @@ def train_one_epoch(epoch_index):
         running_loss += loss.item()
         if i % 1000 == 0:
             last_loss = running_loss / 1000 # loss per batch
-            print('  batch {} loss: {}'.format(i + 1, last_loss))
+            print('batch {} loss: {}'.format(i + 1, last_loss))
             running_loss = 0.
 
     return last_loss
