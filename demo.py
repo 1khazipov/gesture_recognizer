@@ -8,6 +8,7 @@ import torch
 
 from src.utils import get_frame_points
 from src.models.simple_lstm.train_model import SimpleLSTM
+from src.models.complex_lstm.train_model import ComplexLSTM
 
 import argparse
     
@@ -78,8 +79,11 @@ def main(args):
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
-            
-    model = SimpleLSTM(input_size=225, output_size=len(IDX_TO_CLASS))
+    
+    if args.model_name == 'simple_lstm':
+        model = SimpleLSTM(input_size=225, output_size=len(IDX_TO_CLASS))
+    if args.model_name == 'complex_lstm':
+        model = ComplexLSTM(input_size=225, output_size=len(IDX_TO_CLASS))
     
     load_ckpt_path = f'models/{args.model_name}'
     model_ckpt_path = load_ckpt_path + '/' + args.checkpoint_name
