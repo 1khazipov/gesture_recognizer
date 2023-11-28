@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 scriptpath = "."
 sys.path.append(os.path.abspath(scriptpath))
-from src.models.utils import train_model, get_device, get_dataset
+from src.models.utils import train_model, get_device, get_dataset, set_seed
 
 class SimpleLSTM(nn.Module):
     def __init__(self, input_size, output_size) -> None:
@@ -28,6 +28,8 @@ class SimpleLSTM(nn.Module):
 
 
 if __name__ == '__main__':
+    set_seed()
+    
     device = get_device()
     print('Connected to device:', device)
     

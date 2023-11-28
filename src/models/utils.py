@@ -13,10 +13,21 @@ import os
 from os.path import exists
 import torch.nn.functional as F
 
+import random
+import numpy as np
+
 import sys
 scriptpath = "."
 sys.path.append(os.path.abspath(scriptpath))
 from src.utils import create_dataframe
+
+def set_seed():
+    """
+    Set random seeds for reproducibility.
+    """
+    torch.manual_seed(0)
+    random.seed(0)
+    np.random.seed(0)
 
 def read_classes(path):
     classes = dict()
