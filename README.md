@@ -61,3 +61,5 @@ One can add some arguments as well. Command with default arguments is (example f
 ```bash
 python demo.py --threshold 0.9 --checkpoint_name 'best.pt' --model_name 'simple_lstm' 
 ```
+# Demo
+[Video with model predictions](https://drive.google.com/drive/folders/1qkIf2F0GwjrTzTvmpqX86zHczgeVIpe2?usp=sharing)
