@@ -88,7 +88,7 @@ def main(args):
     load_ckpt_path = f'models/{args.model_name}'
     model_ckpt_path = load_ckpt_path + '/' + args.checkpoint_name
 
-    checkpoint = torch.load(model_ckpt_path)
+    checkpoint = torch.load(model_ckpt_path) if torch.cuda.is_available() else torch.load(model_ckpt_path, map_location=lambda storage, loc: storage) 
 
     model.load_state_dict(checkpoint['model_state_dict'])
     model.eval()
