@@ -164,5 +164,8 @@ cython_debug/
 # dataset
 data/internal/features
 data/internal/**/*.mp4
-data/raw
+data/raw/custom_dataset
+data/raw/custom_video_dataset
+data/raw/dataset/videos
+data/raw/dataset/**/*.json
 data/**/*.zip
