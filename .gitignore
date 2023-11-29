@@ -160,4 +160,7 @@ cython_debug/
 .idea/
 
 # dataset
-data
+data/internal/features
+data/internal/**/*.mp4
+data/raw
+data/**/*.zip
